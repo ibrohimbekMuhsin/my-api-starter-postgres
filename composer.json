@@ -1,7 +1,7 @@
 {
     "name": "ibrohimbekmuhsin/my-api-starter-postgres",
     "type": "library",
-    "license": "proprietary",
+    "license": "MIT",
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {

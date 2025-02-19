@@ -14,7 +14,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'mas:generate:jwtKeys',
-    description: 'Generate jwt keys. If keys are exist they are will be dropped',
+    description: 'Generate jwt keys. If keys exist, they will be dropped.',
 )]
 class MasGenerateJWTKeysCommand extends Command implements GetOutputInterface
 {
@@ -40,11 +40,43 @@ class MasGenerateJWTKeysCommand extends Command implements GetOutputInterface
         $this->symfonyIO = new SymfonyStyle($input, $output);
         $this->output = $output;
 
+        $this->setJwtPassphrase();
         $this->createJwtFolder();
         $this->createPassphrase();
         $this->allowAccessToPrivateKey();
 
         return Command::SUCCESS;
+    }
+
+    private function setJwtPassphrase(): void
+    {
+        $envFile = $this->getDockerEnvFile();
+        if (!file_exists($envFile)) {
+            $this->symfonyIO->error("Environment file not found: $envFile");
+            return;
+        }
+
+        $jwtPassphrase = bin2hex(random_bytes(16)); // Генерируем случайную фразу
+        file_put_contents($envFile, "\nJWT_PASSPHRASE=$jwtPassphrase", FILE_APPEND | LOCK_EX);
+        $this->symfonyIO->success("JWT_PASSPHRASE set in $envFile");
+    }
+
+    private function getDockerEnvFile(): string
+    {
+        $envFiles = [
+            '.env.local',
+            '.env',
+            ".env." . ($_ENV['APP_ENV'] ?? 'dev'),
+            ".env." . ($_ENV['APP_ENV'] ?? 'dev') . ".local"
+        ];
+
+        foreach ($envFiles as $file) {
+            if (file_exists($file)) {
+                return $file;
+            }
+        }
+
+        return '.env';
     }
 
     private function createJwtFolder(): void
@@ -60,7 +92,7 @@ class MasGenerateJWTKeysCommand extends Command implements GetOutputInterface
     {
         $this->runSystemCommandAndNotify(
             '
-            jwt_passphrase=${JWT_PASSPHRASE:-$(grep \'\'^JWT_PASSPHRASE=\'\' .env | cut -f 2 -d \'\'=\'\')}
+            jwt_passphrase=$(grep "^JWT_PASSPHRASE=" ' . $this->getDockerEnvFile() . ' | cut -f 2 -d "=")
             echo "$jwt_passphrase" | openssl genpkey -out config/jwt/private.pem -pass stdin -aes256 -algorithm rsa -pkeyopt rsa_keygen_bits:4096
             echo "$jwt_passphrase" | openssl pkey -in config/jwt/private.pem -passin stdin -out config/jwt/public.pem -pubout
             ',
