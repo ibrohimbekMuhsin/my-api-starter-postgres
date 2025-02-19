@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Command\Interfaces\GetOutputInterface;
 use App\Command\Traits\RunCommandTrait;
+use Random\RandomException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -33,6 +34,9 @@ class MasGenerateJWTKeysCommand extends Command implements GetOutputInterface
         return $this->symfonyIO;
     }
 
+    /**
+     * @throws RandomException
+     */
     protected function execute(
         InputInterface $input,
         OutputInterface $output
@@ -48,6 +52,9 @@ class MasGenerateJWTKeysCommand extends Command implements GetOutputInterface
         return Command::SUCCESS;
     }
 
+    /**
+     * @throws RandomException
+     */
     private function setJwtPassphrase(): void
     {
         $envFile = $this->getDockerEnvFile();
@@ -56,10 +63,18 @@ class MasGenerateJWTKeysCommand extends Command implements GetOutputInterface
             return;
         }
 
-        $jwtPassphrase = bin2hex(random_bytes(16)); // Генерируем случайную фразу
+        $envContent = file_get_contents($envFile);
+
+        if (preg_match('/^JWT_PASSPHRASE=(.+)$/m', $envContent)) {
+            $this->symfonyIO->success("JWT_PASSPHRASE уже установлен в $envFile");
+            return;
+        }
+
+        $jwtPassphrase = bin2hex(random_bytes(16));
         file_put_contents($envFile, "\nJWT_PASSPHRASE=$jwtPassphrase", FILE_APPEND | LOCK_EX);
-        $this->symfonyIO->success("JWT_PASSPHRASE set in $envFile");
+        $this->symfonyIO->success("JWT_PASSPHRASE установлен в $envFile");
     }
+
 
     private function getDockerEnvFile(): string
     {
