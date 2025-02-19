@@ -65,14 +65,27 @@ class MasGenerateJWTKeysCommand extends Command implements GetOutputInterface
 
         $envContent = file_get_contents($envFile);
 
-        if (preg_match('/^JWT_PASSPHRASE=(.+)$/m', $envContent)) {
-            $this->symfonyIO->success("JWT_PASSPHRASE уже установлен в $envFile");
+        if (preg_match('/^JWT_PASSPHRASE=(.*)$/m', $envContent, $matches)) {
+            if (!empty(trim($matches[1]))) {
+                $this->symfonyIO->success("JWT_PASSPHRASE уже установлен в $envFile");
+                return;
+            }
+
+            $jwtPassphrase = bin2hex(random_bytes(16));
+            $envContent = preg_replace(
+                '/^JWT_PASSPHRASE=.*$/m',
+                "JWT_PASSPHRASE=$jwtPassphrase",
+                $envContent
+            );
+
+            file_put_contents($envFile, $envContent);
+            $this->symfonyIO->success("JWT_PASSPHRASE обновлён в $envFile");
             return;
         }
 
         $jwtPassphrase = bin2hex(random_bytes(16));
         file_put_contents($envFile, "\nJWT_PASSPHRASE=$jwtPassphrase", FILE_APPEND | LOCK_EX);
-        $this->symfonyIO->success("JWT_PASSPHRASE установлен в $envFile");
+        $this->symfonyIO->success("JWT_PASSPHRASE добавлен в $envFile");
     }
 
 
