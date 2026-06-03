@@ -59,14 +59,12 @@ class MasInstallCommand extends Command implements GetOutputInterface
     private function waitConnection(): void
     {
         $this->symfonyIO->writeln("Try to connect to database");
-        $this->symfonyIO->writeln("Please, be patiently. First running of MySQL server requires much time");
+        $this->symfonyIO->writeln("Please, be patiently. First running of PostgreSQL server requires much time");
 
         while (true) {
             try {
-                $this->entityManager->getConnection()->connect();
-                if ($this->entityManager->getConnection()->isConnected()) {
-                    return;
-                }
+                $this->entityManager->getConnection()->executeQuery('SELECT 1');
+                return;
             } catch (Throwable) {
                 sleep(5);
             }
